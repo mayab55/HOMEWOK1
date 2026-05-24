@@ -5,65 +5,64 @@ import java.util.Random;
 public class Philosopher extends Thread {
 
     private final int id;
-
-    private Fork leftFork;
-    private Fork rightFork;
-
+    private final Fork leftFork;
+    private final Fork rightFork;
     private PhilosopherState state;
-
     private int eatCount = 0;
-
     private boolean running = true;
-
     private final DiningTablePanel panel;
-
     private final Random random = new Random();
 
-    public Philosopher(int id,
-                       Fork leftFork,
-                       Fork rightFork,
-                       DiningTablePanel panel) {
-
+    public Philosopher(int id, Fork leftFork, Fork rightFork, DiningTablePanel panel) {
         this.id = id;
         this.leftFork = leftFork;
         this.rightFork = rightFork;
         this.panel = panel;
-
-        state = PhilosopherState.THINKING;
+        this.state = PhilosopherState.THINKING;
     }
 
     @Override
     public void run() {
+        try {
+            while (running) {
+                think();
 
-        while (running) {
+                Fork firstFork;
+                Fork secondFork;
 
-            think();
+                // מניעת Deadlock באמצעות אסימטריה
+                if (id % 2 == 0) {
+                    firstFork = leftFork;
+                    secondFork = rightFork;
+                } else {
+                    firstFork = rightFork;
+                    secondFork = leftFork;
+                }
 
-            Fork firstFork;
-            Fork secondFork;
+                // ניסיון הרמת מזלג ראשון
+                state = PhilosopherState.WAITING_FIRST;
+                repaintPanel();
+                firstFork.take(id);
 
-            // מניעת Deadlock
-            // הפילוסוף האחרון לוקח הפוך
-            if (id % 2 == 0) {
-                firstFork = leftFork;
-                secondFork = rightFork;
-            } else {
-                firstFork = rightFork;
-                secondFork = leftFork;
+                // המתנה אקראית של עד שנייה בין המזלגות לפי הדרישות
+                sleepRandom(1000);
+
+                // ניסיון הרמת מזלג שני
+                state = PhilosopherState.WAITING_SECOND;
+                repaintPanel();
+                secondFork.take(id);
+
+                // אכילה
+                eat();
+
+                // שחרור המזלגות
+                firstFork.release();
+                secondFork.release();
+
+                repaintPanel();
             }
-
-            takeFirstFork(firstFork);
-
-            sleepRandom(1000);
-
-            takeSecondFork(secondFork);
-
-            eat();
-
-            firstFork.release();
-            secondFork.release();
-
-            repaintPanel();
+        } catch (InterruptedException e) {
+            // יציאה מסודרת במקרה של אינטראפט
         }
 
         state = PhilosopherState.STOPPED;
@@ -71,62 +70,23 @@ public class Philosopher extends Thread {
     }
 
     private void think() {
-
         state = PhilosopherState.THINKING;
         repaintPanel();
-
-        sleepRandom(5000);
-    }
-
-    private void takeFirstFork(Fork fork) {
-
-        state = PhilosopherState.WAITING_FIRST;
-        repaintPanel();
-
-        while (running && !fork.take(id)) {
-            sleepFixed(100);
-        }
-
-        repaintPanel();
-    }
-
-    private void takeSecondFork(Fork fork) {
-
-        state = PhilosopherState.WAITING_SECOND;
-        repaintPanel();
-
-        while (running && !fork.take(id)) {
-            sleepFixed(100);
-        }
-
-        repaintPanel();
+        sleepRandom(5000); // חשיבה של עד 5 שניות
     }
 
     private void eat() {
-
         state = PhilosopherState.EATING;
         eatCount++;
-
         repaintPanel();
-
-        sleepRandom(1000);
+        sleepRandom(1000); // אכילה של עד שנייה
     }
 
     private void sleepRandom(int max) {
-
         try {
             Thread.sleep(random.nextInt(max) + 1);
         } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void sleepFixed(int time) {
-
-        try {
-            Thread.sleep(time);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+            running = false;
         }
     }
 
@@ -136,10 +96,7 @@ public class Philosopher extends Thread {
 
     public void stopPhilosopher() {
         running = false;
-    }
-
-    public int getIdNumber() {
-        return id;
+        this.interrupt(); // מעיר אותו מה-wait/sleep כדי שיעצור מיד
     }
 
     public PhilosopherState getStateEnum() {

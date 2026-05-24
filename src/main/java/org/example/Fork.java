@@ -5,20 +5,19 @@ public class Fork {
     private boolean taken = false;
     private int ownerId = -1;
 
-    public synchronized boolean take(int philosopherId) {
-
-        if (!taken) {
-            taken = true;
-            ownerId = philosopherId;
-            return true;
+    // שימוש ב-wait מונע Busy Waiting ומבטיח סנכרון הוגן ויעיל
+    public synchronized void take(int philosopherId) throws InterruptedException {
+        while (taken) {
+            wait();
         }
-
-        return false;
+        taken = true;
+        ownerId = philosopherId;
     }
 
     public synchronized void release() {
         taken = false;
         ownerId = -1;
+        notifyAll(); // מעיר את הפילוסופים הממתינים למזלג זה
     }
 
     public synchronized boolean isTaken() {
