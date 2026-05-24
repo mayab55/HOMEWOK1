@@ -1,4 +1,9 @@
 package org.example;
 
-public class PhilosopherState {
+public enum PhilosopherState {
+    THINKING,
+    WAITING_FIRST,
+    WAITING_SECOND,
+    EATING,
+    STOPPED
 }
