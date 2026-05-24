@@ -1,30 +1,45 @@
 package org.example;
 
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
+
 public class Fork {
 
-    private boolean taken = false;
+    private final ReentrantLock lock =
+            new ReentrantLock(true);
+
     private int ownerId = -1;
 
-    // שימוש ב-wait מונע Busy Waiting ומבטיח סנכרון הוגן ויעיל
-    public synchronized void take(int philosopherId) throws InterruptedException {
-        while (taken) {
-            wait();
+    public boolean tryTake(int philosopherId)
+            throws InterruptedException {
+
+        if (lock.tryLock(100, TimeUnit.MILLISECONDS)) {
+
+            ownerId = philosopherId;
+
+            return true;
         }
-        taken = true;
-        ownerId = philosopherId;
+
+        return false;
     }
 
-    public synchronized void release() {
-        taken = false;
-        ownerId = -1;
-        notifyAll(); // מעיר את הפילוסופים הממתינים למזלג זה
+    public void release() {
+
+        if (lock.isHeldByCurrentThread()) {
+
+            ownerId = -1;
+
+            lock.unlock();
+        }
     }
 
-    public synchronized boolean isTaken() {
-        return taken;
+    public boolean isTaken() {
+
+        return lock.isLocked();
     }
 
-    public synchronized int getOwnerId() {
+    public int getOwnerId() {
+
         return ownerId;
     }
 }
